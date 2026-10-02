@@ -72,13 +72,13 @@ ffmpeg -i taunt.mp3 -c:a pcm_s16le -ar 44100 Troll.wav
 
 These names are not mobs. They are causes of death with no attacker:
 
-| File | Plays when |
-|---|---|
-| `default.wav` | Any death without a sound of its own |
-| `fire.wav` | Death by fire |
-| `poison.wav` | Death by poison |
-| `frost.wav` | Death by freezing |
-| `drowning.wav` | Death by drowning |
+| File           | Plays when                           |
+| -------------- | ------------------------------------ |
+| `default.wav`  | Any death without a sound of its own |
+| `fire.wav`     | Death by fire                        |
+| `poison.wav`   | Death by poison                      |
+| `frost.wav`    | Death by freezing                    |
+| `drowning.wav` | Death by drowning                    |
 
 If a mob is the one dealing the damage (for example a poison skeleton), the mob's sound plays instead of the cause's sound.
 
@@ -97,47 +97,15 @@ DeathTaunt: Player Hansito was killed by Troll [Troll]
 
 A config file is created on first launch at `BepInEx/config/hansito.DeathTaunt.cfg`:
 
-| Section | Option | Default | Description |
-|---|---|---|---|
-| `Debug` | `DumpMobList` | `true` | Writes `mobs.txt` when entering a world. Set it to `false` once you no longer need it. |
+| Section | Option        | Default | Description                                                                            |
+| ------- | ------------- | ------- | -------------------------------------------------------------------------------------- |
+| `Debug` | `DumpMobList` | `true`  | Writes `mobs.txt` when entering a world. Set it to `false` once you no longer need it. |
 
 ## Multiplayer
 
 - When a player dies, their client sends the other players the name of the player and of the mob. **Sounds never travel over the network**: each player plays the files from their own `sounds/` folder, so everyone can have different sounds.
 - To see and hear everyone's deaths, **every player must have the mod installed**. Players without it can still join and play, but they will not see or hear the announcements, and their own deaths will not be announced.
 - The server does not need the mod.
-
-## Building from source
-
-Requirements: the .NET SDK and the Valheim and BepInEx DLLs.
-
-1. Open `DeathTaunt.csproj` and set these two paths to match your installation:
-
-```xml
-<ValheimDir>/path/to/Valheim</ValheimDir>
-<BepInExDir>/path/to/the/folder/that/contains/BepInEx</BepInExDir>
-```
-
-   `ValheimDir` must contain `valheim_Data/Managed/`, and `BepInExDir` must contain `BepInEx/core/`. If both live in the same directory, use the same path for both.
-
-2. Build:
-
-```bash
-dotnet build -c Release
-```
-
-3. The `.dll` ends up in `bin/Release/net462/DeathTaunt.dll`. The project includes a post-build step that copies it to `BepInEx/plugins/DeathTaunt/`.
-
-The project targets `net462`, which is what Valheim (Mono) uses.
-
-## Troubleshooting
-
-| Symptom | What to check |
-|---|---|
-| No `Loading [DeathTaunt ...]` line in the log | The `.dll` is not in `BepInEx/plugins/`, or BepInEx is not loading. Check the log for errors. |
-| The message shows but nothing plays | `default.wav` or the mob's file is missing. Names must match exactly and files must be `.wav`. |
-| An environmental death shows the generic "has died" message | That hit type is not recognized. Look for the `DeathTaunt hitType: ...` line in the log to see its real name. |
-| `mobs.txt` does not appear | You have to enter a world (the main menu is not enough), and `DumpMobList` must be `true`. |
 
 ## Known limitations
 
