@@ -107,6 +107,38 @@ A config file is created on first launch at `BepInEx/config/hansito.DeathTaunt.c
 - To see and hear everyone's deaths, **every player must have the mod installed**. Players without it can still join and play, but they will not see or hear the announcements, and their own deaths will not be announced.
 - The server does not need the mod.
 
+## Building from source
+
+Requirements: the .NET SDK and the Valheim and BepInEx DLLs.
+
+1. Open `DeathTaunt.csproj` and set these two paths to match your installation:
+
+```xml
+<ValheimDir>/path/to/Valheim</ValheimDir>
+<BepInExDir>/path/to/the/folder/that/contains/BepInEx</BepInExDir>
+```
+
+`ValheimDir` must contain `valheim_Data/Managed/`, and `BepInExDir` must contain `BepInEx/core/`. If both live in the same directory, use the same path for both.
+
+2. Build:
+
+```bash
+dotnet build -c Release
+```
+
+3. The `.dll` ends up in `bin/Release/net462/DeathTaunt.dll`. The project includes a post-build step that copies it to `BepInEx/plugins/DeathTaunt/`.
+
+The project targets `net462`, which is what Valheim (Mono) uses.
+
+## Troubleshooting
+
+| Symptom                                                     | What to check                                                                                                 |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| No `Loading [DeathTaunt ...]` line in the log               | The `.dll` is not in `BepInEx/plugins/`, or BepInEx is not loading. Check the log for errors.                 |
+| The message shows but nothing plays                         | `default.wav` or the mob's file is missing. Names must match exactly and files must be `.wav`.                |
+| An environmental death shows the generic "has died" message | That hit type is not recognized. Look for the `DeathTaunt hitType: ...` line in the log to see its real name. |
+| `mobs.txt` does not appear                                  | You have to enter a world (the main menu is not enough), and `DumpMobList` must be `true`.                    |
+
 ## Known limitations
 
 - Only the WAV format is supported.
@@ -115,4 +147,6 @@ A config file is created on first launch at `BepInEx/config/hansito.DeathTaunt.c
 
 ## License
 
-To be decided.
+This project is licensed under the [MIT License](LICENSE).
+
+The mod ships without any audio. Sounds you add yourself are not covered by this license and remain subject to their own terms.
