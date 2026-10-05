@@ -8,7 +8,7 @@ using System.IO;
 using UnityEngine;
 using UnityEngine.Networking;
 
-[BepInPlugin("hansito.DeathTaunt", "DeathTaunt", "1.0.0")]
+[BepInPlugin("hansito.DeathTaunt", "DeathTaunt", "1.0.1")]
 public class DeathTaunt : BaseUnityPlugin
 {
     // Sonidos cargados: clave = nombre del prefab (o causa ambiental) -> clip
@@ -141,6 +141,119 @@ public class DeathTaunt : BaseUnityPlugin
                 msg = "El player " + playerName + " ha sido asesinado por " + mob;
             else
                 msg = "Player " + playerName + " was killed by " + mob;
+        }
+
+        Log.LogInfo("DeathTaunt: " + msg + " [" + prefabName + "]");
+        currentMsg = msg;
+        msgUntil = Time.time + 5f;
+
+        // Busca el sonido por prefijo, sin distinguir mayusculas; gana el mas especifico
+        AudioClip clip = null;
+        int best = -1;
+        string prefab = prefabName ?? "";
+        foreach (var kv in Sounds)
+        {
+            if (prefab.StartsWith(kv.Key, StringComparison.OrdinalIgnoreCase) && kv.Key.Length > best)
+            {
+                clip = kv.Value;
+                best = kv.Key.Length;
+            }
+        }
+        if (clip == null) clip = DefaultSound;
+
+        if (clip != null && Player.m_localPlayer != null)
+            AudioSource.PlayClipAtPoint(clip, Player.m_localPlayer.transform.position, 1f);
+    }
+}
+
+[HarmonyPatch(typeof(Game), "Start")]
+static class RegisterRpc
+{
+    static void Postfix()
+    {
+        ZRoutedRpc.instance.Register<string, string, string>("DeathTaunt", DeathTaunt.RPC_DeathTaunt);
+    }
+}
+
+[HarmonyPatch(typeof(Player), "OnDeath")]
+static class PlayerDeathPatch
+{
+    static string CauseFromHit(HitData hit)
+    {
+        if (hit == null) return "";
+
+        switch (hit.m_hitType.ToString())
+        {
+            case "Drowning": return "Env_Drowning";
+            case "Burning": return "Env_Fire";
+            case "Poisoned": return "Env_Poison";
+            case "Freezing": return "Env_Frost";
+        }
+
+        if (hit.m_damage.m_fire > 0f) return "Env_Fire";
+        if (hit.m_damage.m_poison > 0f) return "Env_Poison";
+        if (hit.m_damage.m_frost > 0f) return "Env_Frost";
+        return "";
+    }
+
+    static void Prefix(Player __instance)
+    {
+        if (__instance != Player.m_localPlayer) return;
+
+        var lastHit = Traverse.Create(__instance).Field("m_lastHit").GetValue<HitData>();
+        Character attacker = lastHit != null ? lastHit.GetAttacker() : null;
+
+        string token = "";
+        string prefab;
+
+        if (attacker != null)
+        {
+            token = attacker.m_name;
+            prefab = Utils.GetPrefabName(attacker.gameObject);
+        }
+        else
+        {
+            prefab = CauseFromHit(lastHit);
+        }
+
+        DeathTaunt.Log.LogInfo("DeathTaunt hitType: " + (lastHit != null ? lastHit.m_hitType.ToString() : "null"));
+
+        ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, "DeathTaunt",
+            __instance.GetPlayerName(), token, prefab);
+    }
+}
+
+// Depuracion: al entrar a un mundo escribe mobs.txt con todas las criaturas del juego
+[HarmonyPatch(typeof(ZNetScene), "Awake")]
+static class DumpMobsPatch
+{
+    static void Postfix(ZNetScene __instance)
+    {
+        if (!DeathTaunt.DumpMobs.Value) return;
+
+        try
+        {
+            var lines = new List<string>();
+            foreach (GameObject prefab in __instance.m_prefabs)
+            {
+                if (prefab == null) continue;
+
+                Character c = prefab.GetComponent<Character>();
+                if (c == null || c is Player) continue;
+
+                lines.Add(prefab.name + " | " + c.m_name + " | " + c.m_faction);
+            }
+
+            lines.Sort(StringComparer.OrdinalIgnoreCase);
+
+            string file = Path.Combine(DeathTaunt.PluginDir, "mobs.txt");
+            File.WriteAllLines(file, lines.ToArray());
+
+            DeathTaunt.Log.LogInfo("DeathTaunt: mobs.txt escrito con " + lines.Count + " criaturas en " + file);
+        }
+        catch (Exception e)
+        {
+            DeathTaunt.Log.LogWarning("DeathTaunt: no se pudo escribir mobs.txt: " + e.Message);
         }
     }
 }
